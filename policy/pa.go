@@ -102,7 +102,7 @@ const (
 	maxDNSIdentifierLength = 253
 )
 
-var dnsLabelRegexp = regexp.MustCompile("^[a-z0-9][a-z0-9-]{0,62}$")
+var dnsLabelRegexp = regexp.MustCompile("^[*]|[a-z0-9][a-z0-9-]{0,62}$")
 var punycodeRegexp = regexp.MustCompile("^xn--")
 var idnReservedRegexp = regexp.MustCompile("^[a-z0-9]{2}--")
 
@@ -110,7 +110,8 @@ func isDNSCharacter(ch byte) bool {
 	return ('a' <= ch && ch <= 'z') ||
 		('A' <= ch && ch <= 'Z') ||
 		('0' <= ch && ch <= '9') ||
-		ch == '.' || ch == '-'
+		ch == '.' || ch == '-' ||
+                ch == '*'
 }
 
 var (
@@ -186,13 +187,22 @@ func (pa *AuthorityImpl) WillingToIssue(id core.AcmeIdentifier) error {
 	if len(labels) < 2 {
 		return errTooFewLabels
 	}
-	for _, label := range labels {
+	for idx, label := range labels {
 		if len(label) < 1 {
 			return errLabelTooShort
 		}
 		if len(label) > maxLabelLength {
 			return errLabelTooLong
 		}
+                
+                if label == '*' {
+                        if idx < 1 {
+                                return errInvalidDNSCharacter
+                        }
+                        if len(labels) < 3 {
+                                return errTooFewLabels
+                        }
+                }
 
 		if !dnsLabelRegexp.MatchString(label) {
 			return errInvalidDNSCharacter
